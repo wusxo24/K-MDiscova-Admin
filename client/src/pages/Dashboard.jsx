@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import { apiService } from '../services/api';
 import Filter from '@/components/common/Filter';
 import Card from '@/components/common/Card';
 import Pagination from '@/components/common/Pagination';
@@ -15,28 +15,40 @@ const Dashboard = () => {
   const [topPsychologists, setTopPsychologists] = useState([]);
   const [filter, setFilter] = useState('daily');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const itemsPerPage = 5;
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchDashboardData = async () => {
+      setIsLoading(true);
+      setError(null);
       try {
-        const periods = ['daily', 'monthly', 'yearly'];
-        const [revenueData, psychRegData, parentBookData, topPsychData] = await Promise.all([
-          Promise.all(periods.map(p => api.getRevenue(p))),
-          Promise.all(periods.map(p => api.getPsychologistsRegistered(p))),
-          Promise.all(periods.map(p => api.getParentsBookings(p))),
-          api.getTopPsychologists(filter),
-        ]);
+        // Fetch revenue data from Orders and Payments tables
+        const revenueData = await apiService.getRevenue(filter);
+        setRevenue(revenueData);
 
-        setRevenue(Object.assign({}, ...revenueData));
-        setPsychologistsRegistered(Object.assign({}, ...psychRegData));
-        setParentsBookings(Object.assign({}, ...parentBookData));
+        // Fetch psychologist registration data
+        const psychData = await apiService.getPsychologistsRegistered(filter);
+        setPsychologistsRegistered(psychData);
+
+        // Fetch booking data from Appointments table
+        const bookingData = await apiService.getParentsBookings(filter);
+        setParentsBookings(bookingData);
+
+        // Fetch top psychologists based on reviews and bookings
+        const topPsychData = await apiService.getTopPsychologists(filter);
         setTopPsychologists(topPsychData);
+
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        setError('Failed to load dashboard data. Please try again later.');
+      } finally {
+        setIsLoading(false);
       }
     };
-    fetchData();
+
+    fetchDashboardData();
   }, [filter]);
 
   const handleFilterChange = (newFilter) => {
@@ -50,6 +62,45 @@ const Dashboard = () => {
   );
   const totalPages = Math.ceil(topPsychologists.length / itemsPerPage);
 
+  if (isLoading) {
+    return (
+      <div className="p-6 bg-gray-100 min-h-screen flex items-center justify-center">
+        <div className="text-xl text-gray-600">Loading dashboard data...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 bg-gray-100 min-h-screen flex items-center justify-center">
+        <div className="text-xl text-red-600">{error}</div>
+      </div>
+    );
+  }
+
+  // Prepare chart data
+  const bookingTypesData = [
+    { name: 'Online Meeting', value: parentsBookings[filter]?.online || 0 },
+    { name: 'Initial Consultation', value: parentsBookings[filter]?.initial || 0 }
+  ];
+
+  const trendData = [
+    { name: 'Mon', value: parentsBookings[filter]?.trend?.monday || 0 },
+    { name: 'Tue', value: parentsBookings[filter]?.trend?.tuesday || 0 },
+    { name: 'Wed', value: parentsBookings[filter]?.trend?.wednesday || 0 },
+    { name: 'Thu', value: parentsBookings[filter]?.trend?.thursday || 0 },
+    { name: 'Fri', value: parentsBookings[filter]?.trend?.friday || 0 },
+    { name: 'Sat', value: parentsBookings[filter]?.trend?.saturday || 0 },
+    { name: 'Sun', value: parentsBookings[filter]?.trend?.sunday || 0 }
+  ];
+
+  const statusDistributionData = [
+    { name: 'Completed', value: parentsBookings[filter]?.status?.completed || 0 },
+    { name: 'Scheduled', value: parentsBookings[filter]?.status?.scheduled || 0 },
+    { name: 'Cancelled', value: parentsBookings[filter]?.status?.cancelled || 0 },
+    { name: 'No Show', value: parentsBookings[filter]?.status?.no_show || 0 }
+  ];
+
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
       <div className="flex justify-between items-center mb-6">
@@ -58,56 +109,73 @@ const Dashboard = () => {
       </div>
 
       {/* Top Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <Card className="bg-green-500 text-white" title="Revenue">
-          <p className="text-xl font-bold">${revenue[filter]}</p>
+          <p className="text-xl font-bold">${revenue[filter]?.total?.toLocaleString() || 0}</p>
+          <p className="text-sm opacity-80">
+            {revenue[filter]?.count || 0} transactions
+          </p>
         </Card>
         <Card className="bg-blue-500 text-white" title="Psychologists Registered">
-          <p className="text-xl font-bold">{psychologistsRegistered[filter]}</p>
+          <p className="text-xl font-bold">{psychologistsRegistered[filter]?.total || 0}</p>
+          <p className="text-sm opacity-80">
+            {psychologistsRegistered[filter]?.verified || 0} verified
+          </p>
         </Card>
         <Card className="bg-purple-500 text-white" title="Parents Bookings">
-          <p className="text-xl font-bold">{parentsBookings[filter]}</p>
+          <p className="text-xl font-bold">{parentsBookings[filter]?.total || 0}</p>
+          <p className="text-sm opacity-80">
+            {parentsBookings[filter]?.unique_parents || 0} unique parents
+          </p>
         </Card>
-        {/* Optional: Add more cards here */}
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        {/* Bookings by Type (Bar) */}
-        <Card title="Bookings Overview">
-          <BarChartComponent
-            data={[
-              { name: 'Bookings', value: parentsBookings[filter] },
-              { name: 'Psychologists', value: psychologistsRegistered[filter] },
-            ]}
-          />
-        </Card>
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Bookings Overview */}
+        <div className="bg-white rounded-lg shadow-lg p-4">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Booking Types</h2>
+          <div className="h-[400px]">
+            <BarChartComponent data={bookingTypesData} />
+          </div>
+        </div>
 
-        {/* Psychologists Growth (Line) */}
-        <Card title="Psychologist Trend">
-          <LineChartComponent
-            data={[{ name: filter, value: psychologistsRegistered[filter] }]}
-          />
-        </Card>
+        {/* Booking Trend */}
+        <div className="bg-white rounded-lg shadow-lg p-4">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Weekly Booking Trend</h2>
+          <div className="h-[400px]">
+            <LineChartComponent data={trendData} />
+          </div>
+        </div>
 
-        {/* Pie Chart: Booking Breakdown */}
-        <Card title="Booking Distribution">
-          <PieChartComponent
-            data={[
-              { name: 'Bookings', value: parentsBookings[filter] },
-              { name: 'Registrations', value: psychologistsRegistered[filter] },
-            ]}
-          />
-        </Card>
+        {/* Booking Status Distribution */}
+        <div className="bg-white rounded-lg shadow-lg p-4 lg:col-span-2">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Booking Status Distribution</h2>
+          <div className="h-[400px]">
+            <PieChartComponent data={statusDistributionData} />
+          </div>
+        </div>
       </div>
 
       {/* Top Psychologists Table */}
-      <div className="mt-8">
+      <div className="bg-white rounded-lg shadow-lg p-4">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">Top Psychologists</h2>
         <Table
           data={paginatedPsychologists}
-          columns={['Name', 'Rating', `${filter.charAt(0).toUpperCase() + filter.slice(1)} Bookings`]}
-          columnKeys={['name', 'rating', (row) => row.bookings[filter]]}
+          columns={[
+            'Name',
+            'Rating',
+            'Total Bookings',
+            'Completion Rate',
+            'Average Session Duration'
+          ]}
+          columnKeys={[
+            (row) => `${row.first_name} ${row.last_name}`,
+            'rating',
+            'total_bookings',
+            (row) => `${row.completion_rate}%`,
+            (row) => `${row.avg_session_duration} min`
+          ]}
         />
         <Pagination totalPages={totalPages} currentPage={currentPage} onPageChange={setCurrentPage} />
       </div>
