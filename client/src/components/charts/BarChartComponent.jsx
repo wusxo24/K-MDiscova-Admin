@@ -2,6 +2,28 @@ import React from 'react';
 import ReactApexChart from 'react-apexcharts';
 
 const BarChartComponent = ({ data }) => {
+  console.log('BarChartComponent received data:', data);
+  
+  // Handle empty or invalid data
+  if (!data || data.length === 0) {
+    return (
+      <div style={{ height: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="text-gray-500">No data available</div>
+      </div>
+    );
+  }
+
+  // Filter out zero values
+  const filteredData = data.filter(item => item.value > 0);
+  
+  if (filteredData.length === 0) {
+    return (
+      <div style={{ height: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="text-gray-500">No data to display</div>
+      </div>
+    );
+  }
+
   const options = {
     chart: {
       type: 'bar',
@@ -30,7 +52,7 @@ const BarChartComponent = ({ data }) => {
       colors: ['transparent']
     },
     xaxis: {
-      categories: data.map(item => item.name),
+      categories: filteredData.map(item => item.name),
       axisBorder: {
         show: false
       },
@@ -62,7 +84,7 @@ const BarChartComponent = ({ data }) => {
 
   const series = [{
     name: 'Bookings',
-    data: data.map(item => item.value)
+    data: filteredData.map(item => item.value)
   }];
 
   return (

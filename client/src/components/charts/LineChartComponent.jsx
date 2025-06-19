@@ -2,6 +2,20 @@ import React from 'react';
 import ReactApexChart from 'react-apexcharts';
 
 const LineChartComponent = ({ data }) => {
+  console.log('LineChartComponent received data:', data);
+  
+  // Handle empty or invalid data
+  if (!data || data.length === 0) {
+    return (
+      <div style={{ height: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="text-gray-500">No data available</div>
+      </div>
+    );
+  }
+
+  // For line charts, we want to show all data points even if they're zero
+  const chartData = data;
+
   const options = {
     chart: {
       type: 'area',
@@ -31,7 +45,7 @@ const LineChartComponent = ({ data }) => {
       enabled: false
     },
     xaxis: {
-      categories: data.map(item => item.name),
+      categories: chartData.map(item => item.name),
       axisBorder: {
         show: false
       },
@@ -60,7 +74,7 @@ const LineChartComponent = ({ data }) => {
 
   const series = [{
     name: 'Bookings',
-    data: data.map(item => item.value)
+    data: chartData.map(item => item.value)
   }];
 
   return (

@@ -4,6 +4,28 @@ import ReactApexChart from 'react-apexcharts';
 const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444'];
 
 const PieChartComponent = ({ data }) => {
+  console.log('PieChartComponent received data:', data);
+  
+  // Handle empty or invalid data
+  if (!data || data.length === 0) {
+    return (
+      <div style={{ height: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="text-gray-500">No data available</div>
+      </div>
+    );
+  }
+
+  // Filter out zero values
+  const filteredData = data.filter(item => item.value > 0);
+  
+  if (filteredData.length === 0) {
+    return (
+      <div style={{ height: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="text-gray-500">No data to display</div>
+      </div>
+    );
+  }
+
   const options = {
     chart: {
       type: 'donut',
@@ -13,7 +35,7 @@ const PieChartComponent = ({ data }) => {
         speed: 800,
       }
     },
-    labels: data.map(item => item.name),
+    labels: filteredData.map(item => item.name),
     colors: COLORS,
     plotOptions: {
       pie: {
@@ -63,7 +85,7 @@ const PieChartComponent = ({ data }) => {
     }
   };
 
-  const series = data.map(item => item.value);
+  const series = filteredData.map(item => item.value);
 
   return (
     <div style={{ height: '300px', width: '100%' }}>
