@@ -7,7 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Psychologists from './pages/Psychologists';
 import Parents from './pages/Parents';
 import Settings from './pages/Settings';
-import LoginPage from './pages/LoginPage';
+import LoginPage from './pages/Loginpage';
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
